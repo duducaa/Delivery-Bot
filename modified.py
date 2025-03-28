@@ -46,21 +46,23 @@ class DefaultPlayer(BasePlayer):
                 if d < best_dist:
                     best_dist = d
                     best = item
-            return best
+            return best, best_dist
         
+        best, dist = best_distance(world.packages)
         # Se não estiver carregando pacote e houver pacotes disponíveis:
-        if self.cargo == 0 and world.packages:
-            best = best_distance(world.packages)
-        else:
+        if self.cargo > 0 or self.cargo >= len(world.goals):
             # Se estiver carregando ou não houver mais pacotes, vai para a meta de entrega (se existir)
             if world.goals:
-                best = best_distance(world.goals)
+                best_goal, dist_goal = best_distance(world.goals)
+                if dist_goal < dist:
+                    best = best_goal
+                    dist = dist_goal
             else:
                 return None
         
-        # se a distância do best para o carregador for menor que a distância para o best e menor que 20
+        # se a distância do best para o carregador for menor que a distância para o best e menor que 10
         # e tiver até 30 de bateria, vai para o carregador
-        if distance(best, [sx, sy]) > distance(best, world.recharger) <= 20 and self.battery <= 30:
+        if dist > distance(best, world.recharger) <= 10 or self.battery <= 30:
             best = world.recharger
         
         self.next_target = best
@@ -295,6 +297,7 @@ class Maze:
             target = self.world.player.escolher_alvo(self.world)
             if target is None:
                 self.running = False
+                self.unfinished = True
                 break
 
             self.path = self.astar(self.world.player.position, target)
