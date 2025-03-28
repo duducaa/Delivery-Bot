@@ -240,6 +240,7 @@ class Maze:
         self.delay = 100 if delay < 0 else delay  # milissegundos entre movimentos
         self.path = []
         self.num_deliveries = 0  # contagem de entregas realizadas
+        self.unfinished = False
 
     def heuristic(self, a, b):
         # Distância de Manhattan
@@ -298,8 +299,9 @@ class Maze:
 
             self.path = self.astar(self.world.player.position, target)
             if not self.path:
-                print("Nenhum caminho encontrado para o alvo", target)
+                # print("Nenhum caminho encontrado para o alvo", target)
                 self.running = False
+                self.unfinished = True
                 break
 
             # Segue o caminho calculado
@@ -315,7 +317,7 @@ class Maze:
                 # Recarrega a bateria se estiver no recharger
                 if self.world.recharger and pos == self.world.recharger:
                     self.world.player.battery = 60
-                    print("Bateria recarregada!")
+                    # print("Bateria recarregada!")
                 self.world.draw_world(self.path)
                 pygame.time.wait(self.delay)
 
@@ -325,19 +327,20 @@ class Maze:
                 if target in self.world.packages:
                     self.world.player.cargo += 1
                     self.world.packages.remove(target)
-                    # print("Pacote coletado em", target, "Cargo agora:", self.world.player.cargo)
+                    # # print("Pacote coletado em", target, "Cargo agora:", self.world.player.cargo)
                 # Se for local de entrega e o jogador tiver pelo menos um pacote, entrega.
                 elif target in self.world.goals and self.world.player.cargo > 0:
                     self.world.player.cargo -= 1
                     self.num_deliveries += 1
                     self.world.goals.remove(target)
                     self.score += 50
-                    # print("Pacote entregue em", target, "Cargo agora:", self.world.player.cargo)
-            # print(f"Passos: {self.steps}, Pontuação: {self.score}, Cargo: {self.world.player.cargo}, Bateria: {self.world.player.battery}, Entregas: {self.num_deliveries}")
+                    # # print("Pacote entregue em", target, "Cargo agora:", self.world.player.cargo)
+            # # print(f"Passos: {self.steps}, Pontuação: {self.score}, Cargo: {self.world.player.cargo}, Bateria: {self.world.player.battery}, Entregas: {self.num_deliveries}")
 
-        print("Fim de jogo!")
-        print("Pontuação final:", self.score)
-        print("Total de passos:", self.steps)
+        # print("Fim de jogo!")
+        # print("Pontuação final:", self.score)
+        # print("Total de passos:", self.steps)
+        print(self.score, self.steps, int(self.unfinished))
         pygame.quit()
 
 # ==========================
