@@ -15,5 +15,6 @@ python3 file.py
 
 # MULTIPLE RUN
 ```
-./script.bash 50 10 # 50 times with 10ms of view update
+### 50 times with 10ms of view update
+./script.bash 50 10
 ```
