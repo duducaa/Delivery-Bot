@@ -12,3 +12,8 @@ python3 -m pip install requirements.txt
 ```
 python3 file.py
 ```
+
+# MULTIPLE RUN
+```
+./script.bash 50 10 # 50 times with 10ms of view update
+```
