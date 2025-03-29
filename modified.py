@@ -326,6 +326,7 @@ class Maze:
                 self.world.draw_world(self.path)
                 pygame.time.wait(self.delay)
                 
+                # estando dentro do for, verifica para cada espaço andado
                 # Se for local de coleta, pega o pacote.
                 if pos in self.world.packages:
                     self.world.player.cargo += 1
