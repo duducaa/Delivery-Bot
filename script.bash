@@ -13,6 +13,9 @@ N=$1
 scores_main=()
 scores_modified=()
 
+# Tempo máximo de execução para cada script (em segundos)
+TIMEOUT=1
+
 # Função para rodar um script e capturar os 3 valores de saída
 run_script() {
     local script_name=$1
@@ -20,14 +23,19 @@ run_script() {
     local seed=$3
     local delay=$4
 
-    # Executa o script e captura a saída
-    output=$(python3 "$script_name" --seed "$seed" --delay "$delay" | tail -n 1)
+    # Executa o script com timeout
+    output=$(timeout $TIMEOUT python3 "$script_name" --seed "$seed" --delay "$delay" | tail -n 1)
+    
+    # Verifica se o comando falhou devido ao timeout
+    if [ -z "$output" ]; then
+        echo "Execução de $script_name falhou (timeout). Tentando novamente..."
+        return 1
+    fi
 
-    # Extrair os três valores separados por espaço e formatar para ; (com 3 valores)
-    score=$(echo "$output" | awk '{print $1 ";" $2 ";" $3}')
-
-    # Adiciona ao array correspondente
+    # Extrair os valores e formatar
+    score=$(echo "$output" | awk '{print $1 ";" $2 ";" $3 ";" $4}')
     scores_array+=("$score")
+    return 0
 }
 
 if [ ! -d "./scores" ]; then
@@ -39,22 +47,25 @@ CSV_FILE_MAIN="./scores/main_score.csv"
 CSV_FILE_MODIFIED="./scores/modified_score.csv"
 
 # Criar o arquivo CSV com cabeçalho
-echo "score;steps;unfinished" > "$CSV_FILE_MAIN"
-echo "score;steps;unfinished" > "$CSV_FILE_MODIFIED"
+echo "score;steps;seed;unfinished" > "$CSV_FILE_MAIN"
+echo "score;steps;seed;unfinished" > "$CSV_FILE_MODIFIED"
 
-# Executar o loop n vezes
-for i in $(seq 1 $N); do
-    # Gerar uma seed aleatória para cada execução
+# Executar o loop até atingir N execuções bem-sucedidas
+count=0
+while [ $count -lt $N ]; do
     RANDOM_SEED=$RANDOM
     DELAY=$2  # Defina o delay desejado
 
-    echo "Rodando execução $i com seed $RANDOM_SEED..."
+    echo "Rodando execução $((count + 1)) com seed $RANDOM_SEED..."
 
-    # Rodar os scripts e armazenar os scores
-    run_script "main.py" scores_main $RANDOM_SEED $DELAY
-    run_script "modified.py" scores_modified $RANDOM_SEED $DELAY
-
-    # Adicionar os scores no arquivo CSV (uma linha por execução)
-    echo "${scores_main[$i-1]}" >> "$CSV_FILE_MAIN"
-    echo "${scores_modified[$i-1]}" >> "$CSV_FILE_MODIFIED"
+    # Executa os scripts até ter sucesso
+    if run_script "main.py" scores_main $RANDOM_SEED $DELAY && run_script "modified.py" scores_modified $RANDOM_SEED $DELAY; then
+        echo "${scores_main[$count]}" >> "$CSV_FILE_MAIN"
+        echo "${scores_modified[$count]}" >> "$CSV_FILE_MODIFIED"
+        count=$((count + 1))
+    else
+        echo "Failed"
+    fi
 done
+
+python3 "./score_plot.py"

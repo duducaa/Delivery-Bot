@@ -17,7 +17,6 @@ class BasePlayer(ABC):
         self.position = position  # Posição no grid [x, y]
         self.cargo = 0            # Número de pacotes atualmente carregados
         self.battery = 70         # Nível da bateria
-        self.next_target = None
 
     @abstractmethod
     def escolher_alvo(self, world):
@@ -36,8 +35,10 @@ class DefaultPlayer(BasePlayer):
     def escolher_alvo(self, world):
         sx, sy = self.position
         
+        # calcula distância
         distance = lambda a, b: abs(a[0] - b[0]) + abs(a[1] - b[1])
         
+        # melhor distância de uma série de pontos
         def best_distance(items):
             best = None
             best_dist = float('inf')
@@ -49,12 +50,13 @@ class DefaultPlayer(BasePlayer):
             return best, best_dist
         
         best, dist = best_distance(world.packages)
-        # Se não estiver carregando pacote e houver pacotes disponíveis:
-        if self.cargo > 0 or self.cargo >= len(world.goals):
-            # Se estiver carregando ou não houver mais pacotes, vai para a meta de entrega (se existir)
+    
+        # Se estiver carregando ou não houver mais pacotes, vai para a meta de entrega (se existir)
+        if self.cargo > 0:
             if world.goals:
                 best_goal, dist_goal = best_distance(world.goals)
-                if dist_goal < dist:
+                # se apenas restar uma meta, vai para ela
+                if len(world.goals) == 1 or dist_goal < dist:
                     best = best_goal
                     dist = dist_goal
             else:
@@ -64,8 +66,7 @@ class DefaultPlayer(BasePlayer):
         # e tiver até 30 de bateria, vai para o carregador
         if dist > distance(best, world.recharger) <= 10 or self.battery <= 30:
             best = world.recharger
-        
-        self.next_target = best
+
         return best
 
 # ==========================
@@ -235,7 +236,8 @@ class World:
 # ==========================
 class Maze:
     def __init__(self, seed=None, delay=-1):
-        self.world = World(seed)
+        self.seed = seed
+        self.world = World(self.seed)
         self.running = True
         self.score = 0
         self.steps = 0
@@ -286,7 +288,7 @@ class Maze:
                     heapq.heappush(oheap, (fscore[neighbor], neighbor))
         return []
 
-    def game_loop(self):
+    def game_loop(self):       
         # O jogo termina quando o número de entregas realizadas é igual ao total de itens.
         while self.running:
             if self.num_deliveries >= self.world.total_items:
@@ -323,27 +325,26 @@ class Maze:
                     # print("Bateria recarregada!")
                 self.world.draw_world(self.path)
                 pygame.time.wait(self.delay)
-
-            # Ao chegar ao alvo, processa a coleta ou entrega:
-            if self.world.player.position == target:
+                
                 # Se for local de coleta, pega o pacote.
-                if target in self.world.packages:
+                if pos in self.world.packages:
                     self.world.player.cargo += 1
-                    self.world.packages.remove(target)
-                    # # print("Pacote coletado em", target, "Cargo agora:", self.world.player.cargo)
+                    self.world.packages.remove(pos)
+                    print("Pacote coletado em", pos, "Cargo agora:", self.world.player.cargo)
                 # Se for local de entrega e o jogador tiver pelo menos um pacote, entrega.
-                elif target in self.world.goals and self.world.player.cargo > 0:
+                elif pos in self.world.goals and self.world.player.cargo > 0:
                     self.world.player.cargo -= 1
                     self.num_deliveries += 1
-                    self.world.goals.remove(target)
+                    self.world.goals.remove(pos)
                     self.score += 50
-                    # # print("Pacote entregue em", target, "Cargo agora:", self.world.player.cargo)
-            # # print(f"Passos: {self.steps}, Pontuação: {self.score}, Cargo: {self.world.player.cargo}, Bateria: {self.world.player.battery}, Entregas: {self.num_deliveries}")
+                    print("Pacote entregue em", pos, "Cargo agora:", self.world.player.cargo)
+            
+            print(f"Passos: {self.steps}, Pontuação: {self.score}, Cargo: {self.world.player.cargo}, Bateria: {self.world.player.battery}, Entregas: {self.num_deliveries}")
 
-        # print("Fim de jogo!")
-        # print("Pontuação final:", self.score)
-        # print("Total de passos:", self.steps)
-        print(self.score, self.steps, int(self.unfinished))
+        print("Fim de jogo!")
+        print("Pontuação final:", self.score)
+        print("Total de passos:", self.steps)
+        print(self.score, self.steps, self.seed, int(self.unfinished))
         pygame.quit()
 
 # ==========================

@@ -225,7 +225,8 @@ class World:
 # ==========================
 class Maze:
     def __init__(self, seed=None, delay=-1):
-        self.world = World(seed)
+        self.seed = seed
+        self.world = World(self.seed)
         self.running = True
         self.score = 0
         self.steps = 0
@@ -318,20 +319,20 @@ class Maze:
                 if target in self.world.packages:
                     self.world.player.cargo += 1
                     self.world.packages.remove(target)
-                    # print("Pacote coletado em", target, "Cargo agora:", self.world.player.cargo)
+                    print("Pacote coletado em", target, "Cargo agora:", self.world.player.cargo)
                 # Se for local de entrega e o jogador tiver pelo menos um pacote, entrega.
                 elif target in self.world.goals and self.world.player.cargo > 0:
                     self.world.player.cargo -= 1
                     self.num_deliveries += 1
                     self.world.goals.remove(target)
                     self.score += 50
-                    # print("Pacote entregue em", target, "Cargo agora:", self.world.player.cargo)
-            # print(f"Passos: {self.steps}, Pontuação: {self.score}, Cargo: {self.world.player.cargo}, Bateria: {self.world.player.battery}, Entregas: {self.num_deliveries}")
+                    print("Pacote entregue em", target, "Cargo agora:", self.world.player.cargo)
+            print(f"Passos: {self.steps}, Pontuação: {self.score}, Cargo: {self.world.player.cargo}, Bateria: {self.world.player.battery}, Entregas: {self.num_deliveries}")
 
-        # print("Fim de jogo!")
-        # print("Pontuação final:", self.score)
-        # print("Total de passos:", self.steps)
-        print(self.score, self.steps, int(self.unfinished))
+        print("Fim de jogo!")
+        print("Pontuação final:", self.score)
+        print("Total de passos:", self.steps)
+        print(self.score, self.steps, self.seed, int(self.unfinished))
         pygame.quit()
 
 # ==========================
