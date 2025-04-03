@@ -35,10 +35,8 @@ class DefaultPlayer(BasePlayer):
     def escolher_alvo(self, world):
         sx, sy = self.position
         
-        # calcula distância
         distance = lambda a, b: abs(a[0] - b[0]) + abs(a[1] - b[1])
         
-        # melhor distância de uma série de pontos
         def best_distance(items):
             best = None
             best_dist = float('inf')
@@ -51,21 +49,18 @@ class DefaultPlayer(BasePlayer):
         
         best, dist = best_distance(world.packages)
     
-        # Se estiver carregando ou não houver mais pacotes, vai para a meta de entrega (se existir)
         if self.cargo > 0:
             if world.goals:
                 best_goal, dist_goal = best_distance(world.goals)
-                # se apenas restar uma meta, vai para ela
                 if len(world.goals) == 1 or dist_goal < dist:
                     best = best_goal
                     dist = dist_goal
             else:
                 return None
         
-        # se a distância do best para o carregador for menor que a distância para o best e menor que 10
-        # e tiver até 30 de bateria, vai para o carregador
-        if dist > distance(best, world.recharger) <= 10 or self.battery <= 30:
-            best = world.recharger
+        if dist > distance(self.position, world.recharger) or self.battery <= 30:
+            if self.position != world.recharger:
+                best = world.recharger
 
         return best
 
@@ -122,6 +117,8 @@ class World:
 
         # Inicializa a janela do Pygame
         pygame.init()
+        pygame.font.init()
+        self.font = pygame.font.Font(None, 30)
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Delivery Bot")
 
@@ -199,7 +196,7 @@ class World:
             return self.map[y][x] == 0
         return False
 
-    def draw_world(self, path=None):
+    def draw_world(self, score, cargo, goals, battery, path=None):
         self.screen.fill(self.ground_color)
         # Desenha os obstáculos (paredes)
         for (x, y) in self.walls:
@@ -229,6 +226,16 @@ class World:
         x, y = self.player.position
         rect = pygame.Rect(x * self.block_size, y * self.block_size, self.block_size, self.block_size)
         pygame.draw.rect(self.screen, self.player_color, rect)
+        
+        score_text = self.font.render(f"Score: {score}", True, (0, 0, 0))  # Texto preto
+        self.screen.blit(score_text, (10, 10))
+        cargo_text = self.font.render(f"Cargo: {cargo}", True, (0, 0, 0))  # Texto preto
+        self.screen.blit(cargo_text, (10, 50))
+        goals_text = self.font.render(f"Goals: {goals}", True, (0, 0, 0))  # Texto preto
+        self.screen.blit(goals_text, (10, 90))
+        battery_text = self.font.render(f"Battery: {battery}", True, (0, 0, 0))  # Texto preto
+        self.screen.blit(battery_text, (10, 110))
+        
         pygame.display.flip()
 
 # ==========================
@@ -259,11 +266,10 @@ class Maze:
         gscore = {tuple(start): 0}
         fscore = {tuple(start): self.heuristic(start, goal)}
         oheap = []
-        stop = False
         heapq.heappush(oheap, (fscore[tuple(start)], tuple(start)))
         while oheap:
             current = heapq.heappop(oheap)[1]
-            if list(current) == goal or stop:
+            if list(current) == goal:
                 data = []
                 while current in came_from:
                     data.append(list(current))
@@ -298,17 +304,21 @@ class Maze:
             # Utiliza a estratégia do jogador para escolher o alvo
             target = self.world.player.escolher_alvo(self.world)
             if target is None:
+                print("Nenhum alvo")
                 self.running = False
                 self.unfinished = True
                 break
+            print(target)
 
             self.path = self.astar(self.world.player.position, target)
             if not self.path:
-                # print("Nenhum caminho encontrado para o alvo", target)
+                print("Nenhum caminho encontrado para o alvo", target)
                 self.running = False
                 self.unfinished = True
                 break
-
+            
+            is_pkg = False
+            is_goal = False
             # Segue o caminho calculado
             for pos in self.path:
                 self.world.player.position = pos
@@ -323,22 +333,31 @@ class Maze:
                 if self.world.recharger and pos == self.world.recharger:
                     self.world.player.battery = 60
                     # print("Bateria recarregada!")
-                self.world.draw_world(self.path)
+                self.world.draw_world(self.score, self.world.player.cargo, len(self.world.goals), self.world.player.battery, self.path)
+                
                 pygame.time.wait(self.delay)
                 
-                # estando dentro do for, verifica para cada espaço andado
-                # Se for local de coleta, pega o pacote.
                 if pos in self.world.packages:
-                    self.world.player.cargo += 1
-                    self.world.packages.remove(pos)
-                    print("Pacote coletado em", pos, "Cargo agora:", self.world.player.cargo)
+                    is_pkg = True
+                    break
                 # Se for local de entrega e o jogador tiver pelo menos um pacote, entrega.
                 elif pos in self.world.goals and self.world.player.cargo > 0:
-                    self.world.player.cargo -= 1
-                    self.num_deliveries += 1
-                    self.world.goals.remove(pos)
-                    self.score += 50
-                    print("Pacote entregue em", pos, "Cargo agora:", self.world.player.cargo)
+                    is_goal = True
+                    break
+                
+            # estando dentro do for, verifica para cada espaço andado
+            # Se for local de coleta, pega o pacote.
+            if is_pkg:
+                self.world.player.cargo += 1
+                self.world.packages.remove(pos)
+                print("Pacote coletado em", pos, "Cargo agora:", self.world.player.cargo)
+            # Se for local de entrega e o jogador tiver pelo menos um pacote, entrega.
+            elif is_goal:
+                self.world.player.cargo -= 1
+                self.num_deliveries += 1
+                self.world.goals.remove(pos)
+                self.score += 50
+                print("Pacote entregue em", pos, "Cargo agora:", self.world.player.cargo)
             
             print(f"Passos: {self.steps}, Pontuação: {self.score}, Cargo: {self.world.player.cargo}, Bateria: {self.world.player.battery}, Entregas: {self.num_deliveries}")
 

@@ -40,7 +40,8 @@ def column_plot(column: str, ax):
 
 ax0 = plt.subplot(2, 1, 1)
 df = column_plot("score", ax0)
-print(sum(df["modified"] > df["main"]))
+df["gain"] = df["main"] if (df["modified"] >= 0) else 0
+print(df)
 ax1 = plt.subplot(2, 1, 2)
 column_plot("steps", ax1)
 
